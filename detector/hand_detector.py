@@ -16,9 +16,6 @@ class HandDetector:
 
         contours = cv2.findContours(transformed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-        frame_clone = frame.copy()
-        cv2.drawContours(frame_clone, contours, -1, (127, 127, 0), 2)
-
         if len(contours) > 0:
             max_contour = max(contours, key=cv2.contourArea)
             ((x, y), radius) = cv2.minEnclosingCircle(max_contour)
@@ -27,11 +24,6 @@ class HandDetector:
                 position = (int(x), int(y) - int(radius) + 50)
 
             fingers_count = self._get_fingers_count(max_contour)
-
-        if position is not None:
-            cv2.drawContours(frame_clone, [max_contour], -1, (127, 0, 127), -1)
-
-        cv2.imshow('contours', frame_clone)
 
         return position, fingers_count
 
@@ -68,10 +60,27 @@ class HandDetector:
 
     @staticmethod
     def _get_fingers_count(hand_contour):
-        # https://docs.opencv.org/3.1.0/dd/d49/tutorial_py_contour_features.html
-        # https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contours_more_functions/py_contours_more_functions.html
-        # https://en.wikipedia.org/wiki/Law_of_cosines
+        hull = cv2.convexHull(hand_contour, returnPoints=False)
+        defects = cv2.convexityDefects(hand_contour, hull)
 
-        return 0
+        fingers_detections = 0
+
+        for i in range(defects.shape[0]):
+            s, e, f, d = defects[i, 0]
+            start = tuple(hand_contour[s][0])
+            end = tuple(hand_contour[e][0])
+            farthest = tuple(hand_contour[f][0])
+
+            a = ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** (1/2)
+            b = ((farthest[0] - start[0]) ** 2 + (farthest[1] - start[1]) ** 2) ** (1/2)
+            c = ((end[0] - farthest[0]) ** 2 + (end[1] - farthest[1]) ** 2) ** (1/2)
+
+            angle = acos((b ** 2 + c ** 2 - a ** 2) / (2 * b * c)) * (180 / pi)
+
+            if angle <= 90:
+                fingers_detections += 1
+
+        # not the most precise detector ever :-)
+        return min(fingers_detections + 1, 5)
 
 
