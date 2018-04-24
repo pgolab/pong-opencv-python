@@ -14,7 +14,7 @@ class HandDetector:
         mask = self._get_interesting_pixels_mask(frame)
         transformed = self._get_transformed_pixels_mask(mask)
 
-        cv2.imshow('interesting pixels mask', mask)
+        cv2.imshow('transformed mask', transformed)
 
         # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contours_begin/py_contours_begin.html#contours-getting-started
         # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contour_features/py_contour_features.html#contour-features
@@ -41,10 +41,17 @@ class HandDetector:
 
     @staticmethod
     def _get_transformed_pixels_mask(mask):
-        # http://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
-        # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_filtering/py_filtering.html#filtering
+        thresholded = cv2.threshold(mask, 200, 255, cv2.THRESH_BINARY)[1]
 
-        return None
+        big_ellipse_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        small_ellipse_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+
+        dilation = cv2.dilate(thresholded, small_ellipse_kernel, iterations=1)
+        erosion = cv2.erode(dilation, big_ellipse_kernel, iterations=2)
+        dilation2 = cv2.dilate(erosion, big_ellipse_kernel, iterations=2)
+        erosion2 = cv2.erode(dilation2, small_ellipse_kernel, iterations=1)
+
+        return erosion2
 
     @staticmethod
     def _get_fingers_count(hand_contour):
