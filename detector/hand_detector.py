@@ -14,11 +14,24 @@ class HandDetector:
         mask = self._get_interesting_pixels_mask(frame)
         transformed = self._get_transformed_pixels_mask(mask)
 
-        cv2.imshow('transformed mask', transformed)
+        contours = cv2.findContours(transformed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-        # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contours_begin/py_contours_begin.html#contours-getting-started
-        # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contour_features/py_contour_features.html#contour-features
-        # max(contours, key=cv2.contourArea)
+        frame_clone = frame.copy()
+        cv2.drawContours(frame_clone, contours, -1, (127, 127, 0), 2)
+
+        if len(contours) > 0:
+            max_contour = max(contours, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(max_contour)
+
+            if radius > 10:
+                position = (int(x), int(y) - int(radius) + 50)
+
+            fingers_count = self._get_fingers_count(max_contour)
+
+        if position is not None:
+            cv2.drawContours(frame_clone, [max_contour], -1, (127, 0, 127), -1)
+
+        cv2.imshow('contours', frame_clone)
 
         return position, fingers_count
 
