@@ -14,6 +14,8 @@ class HandDetector:
         mask = self._get_interesting_pixels_mask(frame)
         transformed = self._get_transformed_pixels_mask(mask)
 
+        cv2.imshow('interesting pixels mask', mask)
+
         # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contours_begin/py_contours_begin.html#contours-getting-started
         # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_contours/py_contour_features/py_contour_features.html#contour-features
         # max(contours, key=cv2.contourArea)
@@ -21,12 +23,21 @@ class HandDetector:
         return position, fingers_count
 
     def _get_interesting_pixels_mask(self, frame):
-        # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_filtering/py_filtering.html#filtering
-        # http://docs.opencv.org/3.1.0/db/d5c/tutorial_py_bg_subtraction.html
-        # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_colorspaces/py_colorspaces.html#converting-colorspaces
-        # http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_thresholding/py_thresholding.html#thresholding
+        blur = cv2.blur(frame, (5, 5))
 
-        return None
+        fgmask = self._get_fg_mask(blur)
+        skin_mask = self._get_skin_mask(blur)
+
+        return cv2.addWeighted(fgmask, 0.5, skin_mask, 0.5, 0.0)
+
+    def _get_fg_mask(self, frame):
+        fgmask = self.fgbg.apply(frame)
+        return cv2.threshold(fgmask, 250, 255, cv2.THRESH_BINARY)[1]
+
+    @staticmethod
+    def _get_skin_mask(frame):
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        return cv2.inRange(hsv, SKIN_LOWER_BOUND, SKIN_UPPER_BOUND)
 
     @staticmethod
     def _get_transformed_pixels_mask(mask):
